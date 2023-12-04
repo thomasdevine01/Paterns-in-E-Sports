@@ -49,8 +49,6 @@ default_theme <- theme(
     legend.title = element_text(color = "lightgray", size = 10),
     legend.text = element_text(color = "gray"),
     legend.key = element_rect(fill = "#383838", color = NA),
-    #legend.key.size = unit(1.5, "cm"),
-    #legend.key.width = unit(0.5,"cm"), 
     legend.background = element_rect(fill = "#5f5d63"),
   )
 ```
@@ -270,23 +268,28 @@ yearly_earnings_line <- yearly_earnings_line + labs(
   title = "Tournament Earnings over Time",
   subtitle="Total Yearly Payout to Players Across Major Tournaments",
   x = "Year", y = "Gross Earnings (Millions USD)"
-)
+) + default_theme
+
 yearly_earnings_line <- yearly_earnings_line + theme(
   plot.title = element_text(color = "black", size = 20, 
                             face = "bold", hjust = 0.5),
   plot.subtitle = element_text(color = "black",
                                face = "italic", hjust = 0.5),
-  )
+  ) + 
+    default_theme + 
+     theme (
+      axis.text.x = element_text(angle = 45)
+    )
 yearly_earnings_line
 ```
 
 ```{r}
-merged <- merge(historical, select(general, Game, Genre))
+#merged <- merge(historical, select(general, Game, Genre))
 merged <- merged %>%
-  mutate(year=year.start(Date)) %>%
+#  mutate(year=year.start(Date)) %>%
   mutate(earnings_million=Earnings/1000000) %>%
-  filter(year != date('2023-01-01'))
-merged
+ filter(year != 2023)
+#merged
 # Put the values in a data frame and convert to millions usd
 for (genre in unique(merged$Genre)) {
   earnings_data <- merged %>%

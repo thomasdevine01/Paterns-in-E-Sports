@@ -1,0 +1,802 @@
+---
+title: "Project"
+format: pdf
+editor: visual
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE, results = "hold")
+library(tidyverse)
+library(ggplot2)
+library(comprehenr)
+library(tidymodels)
+library(modelr)
+default_theme <- theme(
+    # Title
+    plot.title = element_text(
+      color = "white", size = 14,  
+      face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(
+      color = "lightgray", size=10, 
+      face = "italic", hjust = 0.5),
+    # Axis Text
+    axis.title.x = element_text(
+      color = "lightgray",  
+      size = 12, angle = 0,
+    ),
+    axis.title.y = element_text(
+      color = "lightgray",  
+      size = 12, angle = 90,
+    ),
+    axis.text.x = element_text(
+      face = "italic", color = "lightgray",  
+      size = 8, angle = -15),
+    axis.text.y = element_text(
+      face = "italic", color = "lightgray",  
+      size = 8, angle=45),
+    # Background Colors
+    panel.background = element_rect(
+      fill = "#060606", colour = "#5f5d63",
+      linewidth = 2, linetype = "solid"),
+    panel.grid.major = element_line(
+      linewidth = 0.5, linetype = 'solid', 
+      colour = "#7a797a"), 
+    panel.grid.minor = element_line(
+      linewidth = 0.25, linetype = 'solid', 
+      colour = "#585759"),
+    plot.background = element_rect(fill = "#0e0e0f"),
+    # Legend
+    legend.title = element_text(color = "lightgray", size = 10),
+    legend.text = element_text(color = "gray"),
+    legend.key = element_rect(fill = "#383838", color = NA),
+    #legend.key.size = unit(1.5, "cm"),
+    #legend.key.width = unit(0.5,"cm"), 
+    legend.background = element_rect(fill = "#5f5d63"),
+  )
+```
+
+# Introduction
+
+```{r}
+# https://www.kaggle.com/datasets/jackdaoud/esports-earnings-for-players-teams-by-game
+teams <- as_tibble(read_csv('highest_earning_teams.csv', col_types="dcddcc"))
+
+players <- as_tibble(read_csv('highest_earning_players.csv', col_types="dccccdcc"))
+summary(players)
+players
+
+locations <- as_tibble(read_csv('country-and-continent-codes-list.csv', col_types="cccccd"))
+summary(locations)
+locations
+
+# https://www.kaggle.com/datasets/rankirsh/esports-earnings
+general <- as_tibble(read_csv('GeneralEsportData.csv',col_types='cdcdddd'))
+summary(general)
+general
+
+historical <- as_tibble(read_csv('HistoricalEsportData.csv', col_types='Dcddd'))
+summary(historical)
+historical
+
+# https://www.kaggle.com/datasets/rankirsh/evolution-of-top-games-on-twitch/data
+twitch_games <- as_tibble(read_csv("Twitch_game_data.csv", col_types='dcccdddddddd')) %>%
+  mutate(Date=date(paste(Year, Month, "01", sep="-")))
+summary(twitch_games)
+twitch_games
+```
+
+# Observations
+
+## Teams
+
+```{r}
+summary(teams)
+```
+
+### TeamID
+
+```{r}
+team_ids <- sort(unique(teams$TeamId))
+
+teams %>%
+  ggplot(mapping = aes(x=TeamId)) +
+  geom_histogram(binwidth=1, color='white', alpha=0.7) +
+  labs(
+    title="Count of Each Team ID",
+    x = "Team ID",
+    y = "Count"
+  ) + default_theme
+```
+
+```{r}
+# Proportion of teams with multiple entries
+(length(team_ids) - length(unique(team_ids)))/(length(team_ids))
+teams %>% # Only show the teams with multiple entries
+  filter(duplicated(TeamId)) %>%
+  arrange(TeamId)
+```
+
+Team IDs are in two different groups, should we redefine TeamIDs for our dataset?
+
+Teams are listed repeatedly for each game they play
+
+### TotalUSDPrize
+
+```{r}
+#team_ids <- sort(unique(teams$TeamId))
+arrange(teams, desc(TotalUSDPrize))
+teams %>%
+  ggplot(mapping = aes(x=TeamId, y=TotalUSDPrize)) +
+  geom_col(color='white', alpha=0.7) +
+  labs(
+    title="Total Tournaments of Each Team",
+    x = "Team ID",
+    y = "Tournament Count",
+  ) + default_theme
+```
+
+### TotalTournaments
+
+```{r}
+#arrange(teams, desc(TotalTournaments)) %>%
+#  group_by(TeamId)
+teams %>%
+  ggplot(mapping = aes(x=TeamId, y=TotalTournaments)) +
+  geom_col(color='white', alpha=0.7) +
+  labs(
+    title="Total Tournaments of Each Team",
+    x = "Team ID",
+    y = "Tournament Count",
+  ) + default_theme
+teams %>%
+  ggplot(mapping = aes(x=Game, y=TotalTournaments)) +
+  geom_boxplot(color='white', alpha=0.7) +
+  labs(
+    title="Team Tournament Counts by Game",
+    x = "Game",
+    y = "Team Tournament Counts",
+  ) + default_theme
+```
+
+### Games
+
+```{r}
+#game_list <- unique(teams$Game)
+#game_list
+teams %>%
+  ggplot(mapping = aes(x=Game)) +
+  geom_bar(color='white', alpha=0.7) +
+  labs(
+    title="Count of Teams in Each Game",
+    x = "Game",
+    y = "Count of Teams",
+  ) + default_theme
+```
+
+This only has the top 100 teams in the top 10 grossing games. Hearthstone and Arena of Valor have less than 100 teams listed here. Why?
+
+### Genre
+
+```{r}
+teams %>%
+  ggplot(mapping = aes(x=Genre)) +
+  geom_bar(color='white', alpha=0.7) +
+  labs(
+    title="Count of Teams in Each Genre",
+    x = "Genre",
+    y = "Count of Teams"
+  ) + default_theme
+```
+
+## Highest Earning Players
+
+-   TotalUSD Prize looks good
+-   Country code should be useful
+-   So should Game and Genre
+
+## Locations
+
+-   Mostly just used for mapping - revisit later
+
+## General Esports Data
+
+-   Total players of 0 seems weird
+-   Total Tournaments of 0 also seems weird
+-   Total earnings of 0 seems weird.
+-   Release date 1981-2023
+
+## Historical Data
+
+-   
+
+# Data Descriptions
+
+## Highest Earning Teams
+
+## Highest Earning Players
+
+## Locations
+
+-   
+
+## General Esports Data
+
+-   Game: Game name
+-   ReleaseDate: Date of release
+-   Genre: Genre of game
+-   TotalEarnings: Total prizepool allocated in tournaments
+-   OfflineEarnings: Amount of earnings allocated in
+-   PercentOffline: Percentage of the offline community
+-   TotalPlayers: Total players of both online and offline
+-   TotalTournaments: Total tournaments played
+
+## Historical Data
+
+-   Date: The month that some set of tournaments happened for this game
+-   Game: The game in question (name)
+-   Earnings: Total amount earned by players in tournaments for this game.
+-   Players: Number of players to whom earnings were distributed.
+-   Tournaments: Number of tournaments for this game this month.
+
+```{r}
+
+ggplot(data=teams, mapping=aes(x=Game)) +
+  geom_histogram(stat='count', binwidth=100)
+
+merged <- merge(historical, select(general, Game, Genre))
+# Put the values in a data frame and convert to millions usd
+
+#merged <- merged %>% 
+#as.Date(merged$Date,origin = "1970-01-01")
+
+merged <- merged %>%
+  mutate(date = as.Date(merged$Date,origin="1970-01-01"),
+    year = format(date, "%Y"))
+
+merged <- merged %>%
+ # mutate(year=year.start(Date))
+  group_by(year) %>%
+  #filter(year != as.date('2023-01-01')) %>%
+  filter(year != 2023) %>%
+  mutate(earnings_million=Earnings/1000000) %>%
+  ungroup()
+
+earnings_data <- merged
+
+yearly_earnings_line <- earnings_data %>%
+  ggplot(mapping = aes(x=year, y=earnings_million)) +
+  geom_col(mapping = aes(fill = Genre))
+yearly_earnings_line <- yearly_earnings_line + labs(
+  title = "Tournament Earnings over Time",
+  subtitle="Total Yearly Payout to Players Across Major Tournaments",
+  x = "Year", y = "Gross Earnings (Millions USD)"
+)
+yearly_earnings_line <- yearly_earnings_line + theme(
+  plot.title = element_text(color = "black", size = 20, 
+                            face = "bold", hjust = 0.5),
+  plot.subtitle = element_text(color = "black",
+                               face = "italic", hjust = 0.5),
+  )
+yearly_earnings_line
+```
+
+```{r}
+merged <- merge(historical, select(general, Game, Genre))
+merged <- merged %>%
+  mutate(year=year.start(Date)) %>%
+  mutate(earnings_million=Earnings/1000000) %>%
+  filter(year != date('2023-01-01'))
+merged
+# Put the values in a data frame and convert to millions usd
+for (genre in unique(merged$Genre)) {
+  earnings_data <- merged %>%
+    filter(Genre == genre)
+  yearly_earnings_line <- earnings_data %>%
+    ggplot(mapping = aes(x=year, y=earnings_million)) +
+    geom_col()
+  yearly_earnings_line <- yearly_earnings_line + labs(
+    title = "Tournament Earnings over Time",
+    subtitle=paste("Total Yearly Payout to ", genre, " Players"),
+    x = "Year", y = "Gross Earnings (Millions USD)"
+  )
+  yearly_earnings_line <- yearly_earnings_line + theme(
+    plot.title = element_text(color = "black", size = 20, 
+                              face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(color = "black",
+                                 face = "italic", hjust = 0.5),
+    )
+  print(yearly_earnings_line)
+  #ggsave(paste("figs/", genre), yearly_earnings_line)
+}
+```
+
+# Training and Testing
+
+Training model for all Data
+
+#60 training 20% testing 20% validation
+
+```{r}
+set.seed(12345)
+
+#teams model
+teams <- teams %>% mutate(
+  Game = as_factor(Game),
+  Genre = as_factor(Genre),
+  TeamName = as_factor(TeamName))
+teams_split <- initial_split(teams, prop = .6)
+teams_train <- training(teams_split)
+other <- testing(teams_split)
+
+teams_split2 <- initial_split(other, prop = .5)
+teams_test <- training(teams_split2)
+teams_valid <- testing(teams_split2)
+
+
+#players model
+players <- players %>% mutate(
+  NameFirst = as_factor(NameFirst),
+  NameLast = as_factor(NameLast),
+  CurrentHandle = as_factor(CurrentHandle),
+  CountryCode = as_factor(CountryCode),
+  Game = as_factor(Game),
+  Genre = as_factor(Genre))
+
+players_split <- initial_split(players, prop = .6)
+players_train <- training(players_split)
+other2 <- testing(players_split)
+
+players_split2 <- initial_split(other2, prop = .5)
+players_test <- training(players_split2)
+players_valid <- testing(players_split2)
+
+
+#locations model
+locations <- locations %>% mutate(
+  Continent_Name = as_factor(Continent_Name),
+  Continent_Code = as_factor(Continent_Code),
+  Two_Letter_Country_Code = as_factor(Two_Letter_Country_Code),
+  Three_Letter_Country_Code = as_factor(Three_Letter_Country_Code),
+  Country_Name = as_factor(Country_Name))
+
+locations_split <- initial_split(locations, prop = .6)
+locations_train <- training(locations_split)
+other3 <- testing(locations_split)
+
+locations_split2 <- initial_split(other3, prop = .5)
+locations_test <- training(locations_split2)
+locations_valid <- testing(locations_split2)
+
+
+#general model
+general <- general %>% mutate(
+  Game = as_factor(Game),
+  Genre = as_factor(Genre))
+
+general_split <- initial_split(general, prop = .6)
+general_train <- training(general_split)
+other4 <- testing(general_split)
+
+general_split2 <- initial_split(other4, prop = .5)
+general_test <- training(general_split2)
+general_valid <- testing(general_split2)
+
+
+#historical model
+historical$Date <- as.numeric(difftime(historical$Date, min(historical$Date), units = "days"))
+
+historical <- historical %>% mutate(
+  Game = as_factor(Game))
+
+historical_split <- initial_split(historical, prop = .6)
+historical_train <- training(historical_split)
+other5 <- testing(historical_split)
+
+historical_split2 <- initial_split(other5, prop = .5)
+historical_test <- training(historical_split2)
+historical_valid <- testing(historical_split2)
+
+#twitch_games model
+twitch_games$Date <- as.numeric(difftime(twitch_games$Date, min(twitch_games$Date), units = "days"))
+twitch_games$Month <- as.numeric(as.character(twitch_games$Month))
+twitch_games$Year <- as.numeric(as.character(twitch_games$Year))
+twitch_games <- twitch_games %>% mutate(
+  Game = as_factor(Game))
+
+twitch_games_split <- initial_split(twitch_games, prop = .6)
+twitch_games_train <- training(twitch_games_split)
+other6 <- testing(twitch_games_split)
+
+twitch_games_split2 <- initial_split(other6, prop = .5)
+twitch_games_test <- training(twitch_games_split2)
+twitch_games_valid <- testing(twitch_games_split2)
+
+```
+
+Correlations between numeric attributes(converted ones as well)
+
+```{r}
+#teams
+t_train <- cor(teams_train %>% select(TeamId, TotalUSDPrize, TotalTournaments))
+print(t_train)
+
+#players
+p_train <- cor(players_train %>% select(PlayerId, TotalUSDPrize))
+print(p_train)
+
+#general
+g_train <- cor(general_train %>% select(ReleaseDate, TotalEarnings, TotalPlayers, TotalTournaments, OfflineEarnings, PercentOffline))
+print(g_train)
+
+#historical
+h_train <- cor(historical_train %>% select(Date, Earnings, Players, Tournaments))
+print(h_train)
+
+#twitch
+tw_train <- cor(twitch_games_train %>% select(Rank, Month, Year, Hours_watched, Hours_streamed, Peak_viewers, Peak_channels, Streamers, Avg_viewers, Avg_channels, Avg_viewer_ratio, Date))
+print(tw_train)
+```
+
+Validating
+
+```{r}
+#teams
+teams_lmodel <- linear_reg() %>% set_engine("lm") %>% 
+  fit(TotalUSDPrize ~ TotalTournaments + TeamId + Game + Genre, data = teams_train)
+#Removed TeamName due to overleveling
+
+teams_validate <- teams_valid %>% 
+  bind_cols(predict(teams_lmodel, new_data = teams_valid))
+
+print(teams_validate)
+
+ggplot(data = teams_validate, mapping = aes(x = TotalUSDPrize, y = .pred)) + 
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1, color = "red")
+
+rsq <- yardstick::rsq(teams_validate, truth = TotalUSDPrize, estimate = .pred)
+rmse <- yardstick::rmse(teams_validate, truth = TotalUSDPrize, estimate = .pred)
+mae <- yardstick::mae(teams_validate, truth = TotalUSDPrize, estimate = .pred)
+
+rsq
+rmse
+mae
+
+results <- workflow() %>%
+  add_model(linear_reg()) %>%
+  add_formula(TotalUSDPrize ~ TotalTournaments + TeamId + Game + Genre) %>%
+  fit_resamples(vfold_cv(teams_train, v=5),
+                metric_set(rsq, rmse, mae)) 
+
+collect_metrics(results)
+
+```
+
+```{r}
+#player
+player_lmodel <- linear_reg() %>% set_engine("lm") %>% 
+  fit(TotalUSDPrize ~ PlayerId  + Game + Genre, data = players_train)
+#removed NameFirst, NameLast, CurrentHandle, CountryCode due to overleveling
+
+player_validate <- players_valid %>% 
+  bind_cols(predict(player_lmodel, new_data = players_valid))
+
+print(player_validate)
+
+ggplot(data = player_validate, mapping = aes(x = TotalUSDPrize, y = .pred)) + 
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1, color = "red")
+
+rsq2 <- yardstick::rsq(player_validate, truth = TotalUSDPrize, estimate = .pred)
+rmse2 <- yardstick::rmse(player_validate, truth = TotalUSDPrize, estimate = .pred)
+mae2 <- yardstick::mae(player_validate, truth = TotalUSDPrize, estimate = .pred)
+
+rsq2
+rmse2
+mae2
+
+results2 <- workflow() %>%
+  add_model(linear_reg()) %>%
+  add_formula(TotalUSDPrize ~ PlayerId  + Game + Genre) %>%
+  fit_resamples(vfold_cv(players_train, v=5),
+                metric_set(rsq2, rmse2, mae2)) 
+
+collect_metrics(results2)
+```
+
+```{r}
+#location
+location_lmodel <- linear_reg() %>% set_engine("lm") %>% 
+  fit(Country_Number ~ Continent_Code, data = locations_train)
+# Continent_Name, Country_Name, Two_Letter_Country_Code, Three_Letter_Country_Code were removed due to overleveling
+
+location_validate <- locations_valid %>% 
+  bind_cols(predict(location_lmodel, new_data = locations_valid))
+
+print(location_validate)
+
+ggplot(data = location_validate, mapping = aes(x = Country_Number, y = .pred)) + 
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1, color = "red")
+
+rsq3 <- yardstick::rsq(location_validate, truth = Country_Number, estimate = .pred)
+rmse3 <- yardstick::rmse(location_validate, truth = Country_Number, estimate = .pred)
+mae3 <- yardstick::mae(location_validate, truth = Country_Number, estimate = .pred)
+
+rsq3
+rmse3
+mae3
+
+results3 <- workflow() %>%
+  add_model(linear_reg()) %>%
+  add_formula(Country_Number ~ Continent_Code) %>%
+  fit_resamples(vfold_cv(locations_train, v=5),
+                metric_set(rsq3, rmse3, mae3)) 
+
+collect_metrics(results3)
+```
+
+```{r}
+#general
+general_lmodel <- linear_reg() %>% set_engine("lm") %>% 
+  fit(TotalEarnings  ~  ReleaseDate + Genre + OfflineEarnings + PercentOffline + TotalPlayers + TotalTournaments, data = general_train)
+#Removed Game due to overleveling
+
+general_validate <- general_valid %>% 
+  bind_cols(predict(general_lmodel, new_data = general_valid))
+
+print(general_validate)
+
+ggplot(data = general_validate, mapping = aes(x = TotalEarnings, y = .pred)) + 
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1, color = "red")
+
+rsq4 <- yardstick::rsq(general_validate, truth = TotalEarnings, estimate = .pred)
+rmse4 <- yardstick::rmse(general_validate, truth = TotalEarnings, estimate = .pred)
+mae4 <- yardstick::mae(general_validate, truth = TotalEarnings, estimate = .pred)
+
+rsq4
+rmse4
+mae4
+
+results4 <- workflow() %>%
+  add_model(linear_reg()) %>%
+  add_formula(TotalEarnings  ~  ReleaseDate + Genre + OfflineEarnings + PercentOffline + TotalPlayers + TotalTournaments) %>%
+  fit_resamples(vfold_cv(general_train, v=5),
+                metric_set(rsq4, rmse4, mae4)) 
+
+collect_metrics(results4)
+```
+
+```{r}
+#historical
+historical_lmodel <- linear_reg() %>% set_engine("lm") %>% 
+  fit(Earnings  ~  Date + Players + Tournaments, data = historical_train)
+#Removed Game due to overleveling
+
+historical_validate <- historical_valid %>% 
+  bind_cols(predict(historical_lmodel, new_data = historical_valid))
+
+print(historical_validate)
+
+ggplot(data = historical_validate, mapping = aes(x = Earnings, y = .pred)) + 
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1, color = "red")
+
+rsq5 <- yardstick::rsq(historical_validate, truth = Earnings, estimate = .pred)
+rmse5 <- yardstick::rmse(historical_validate, truth = Earnings, estimate = .pred)
+mae5 <- yardstick::mae(historical_validate, truth = Earnings, estimate = .pred)
+
+rsq5
+rmse5
+mae5
+
+results5 <- workflow() %>%
+  add_model(linear_reg()) %>%
+  add_formula(Earnings  ~  Date + Players + Tournaments) %>%
+  fit_resamples(vfold_cv(historical_train, v=5),
+                metric_set(rsq5, rmse5, mae5)) 
+
+collect_metrics(results5)
+```
+
+```{r}
+#twitch
+twitch_game_lmodel <- linear_reg() %>% set_engine("lm") %>% 
+  fit(Peak_viewers  ~  Rank + Month + Year + Hours_watched + Hours_streamed + Peak_channels + Streamers + Avg_viewers + Avg_channels + Avg_viewer_ratio + Date, data = twitch_games_train)
+#Removed Game due to overleveling
+
+twitch_game_validate <- twitch_games_valid %>% 
+  bind_cols(predict(twitch_game_lmodel, new_data = twitch_games_valid))
+
+print(twitch_game_validate)
+
+ggplot(data = twitch_game_validate, mapping = aes(x = Peak_viewers, y = .pred)) + 
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1, color = "red")
+
+rsq6 <- yardstick::rsq(twitch_game_validate, truth = Peak_viewers, estimate = .pred)
+rmse6 <- yardstick::rmse(twitch_game_validate, truth = Peak_viewers, estimate = .pred)
+mae6 <- yardstick::mae(twitch_game_validate, truth = Peak_viewers, estimate = .pred)
+
+rsq6
+rmse6
+mae6
+
+results6 <- workflow() %>%
+  add_model(linear_reg()) %>%
+  add_formula(Peak_viewers  ~  Rank + Month + Year + Hours_watched + Hours_streamed + Peak_channels + Streamers + Avg_viewers + Avg_channels + Avg_viewer_ratio + Date) %>%
+  fit_resamples(vfold_cv(twitch_games_train, v=5),
+                metric_set(rsq6, rmse6, mae6)) 
+
+collect_metrics(results6)
+```
+
+Testing
+
+```{r}
+#teams
+teams_testing <- teams_test %>% 
+  bind_cols(predict(teams_lmodel, new_data = teams_test))
+
+print(teams_testing)
+
+ggplot(data = teams_testing, mapping = aes(x = TotalUSDPrize, y = .pred)) + 
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1, color = "red")
+
+rsq_test <- yardstick::rsq(teams_testing, truth = TotalUSDPrize, estimate = .pred)
+rmse_test <- yardstick::rmse(teams_testing, truth = TotalUSDPrize, estimate = .pred)
+mae_test <- yardstick::mae(teams_testing, truth = TotalUSDPrize, estimate = .pred)
+
+rsq_test
+rmse_test
+mae_test
+
+results_test <- workflow() %>%
+  add_model(linear_reg()) %>%
+  add_formula(TotalUSDPrize ~ TotalTournaments + TeamId + Game + Genre) %>%
+  fit_resamples(vfold_cv(teams_train, v=5),
+                metric_set(rsq_test, rmse_test, mae_test)) 
+
+collect_metrics(results_test)
+```
+
+```{r}
+player_testing <- players_test %>% 
+  bind_cols(predict(player_lmodel, new_data = players_test))
+
+print(player_testing)
+
+ggplot(data = player_testing, mapping = aes(x = TotalUSDPrize, y = .pred)) + 
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1, color = "red")
+
+rsq_test2 <- yardstick::rsq(player_testing, truth = TotalUSDPrize, estimate = .pred)
+rmse_test2 <- yardstick::rmse(player_testing, truth = TotalUSDPrize, estimate = .pred)
+mae_test2 <- yardstick::mae(player_testing, truth = TotalUSDPrize, estimate = .pred)
+
+rsq_test2
+rmse_test2
+mae_test2
+
+results_test2 <- workflow() %>%
+  add_model(linear_reg()) %>%
+  add_formula(TotalUSDPrize ~ PlayerId  + Game + Genre) %>%
+  fit_resamples(vfold_cv(players_train, v=5),
+                metric_set(rsq_test2, rmse_test2, mae_test2)) 
+
+collect_metrics(results_test2)
+```
+
+```{r}
+location_testing <- locations_test %>% 
+  bind_cols(predict(location_lmodel, new_data = locations_test))
+
+print(location_testing)
+
+ggplot(data = location_testing, mapping = aes(x = Country_Number, y = .pred)) + 
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1, color = "red")
+
+rsq_test3 <- yardstick::rsq(location_testing, truth = Country_Number, estimate = .pred)
+rmse_test3 <- yardstick::rmse(location_testing, truth = Country_Number, estimate = .pred)
+mae_test3 <- yardstick::mae(location_testing, truth = Country_Number, estimate = .pred)
+
+rsq_test3
+rmse_test3
+mae_test3
+
+results_test3 <- workflow() %>%
+  add_model(linear_reg()) %>%
+  add_formula(Country_Number ~ Continent_Code) %>%
+  fit_resamples(vfold_cv(locations_train, v=5),
+                metric_set(rsq_test3, rmse_test3, mae_test3)) 
+
+collect_metrics(results_test3)
+```
+
+```{r}
+general_testing <- general_test %>% 
+  bind_cols(predict(general_lmodel, new_data = general_test))
+
+print(general_testing)
+
+ggplot(data = general_testing, mapping = aes(x = TotalEarnings, y = .pred)) + 
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1, color = "red")
+
+rsq_test4 <- yardstick::rsq(general_testing, truth = TotalEarnings, estimate = .pred)
+rmse_test4 <- yardstick::rmse(general_testing, truth = TotalEarnings, estimate = .pred)
+mae_test4 <- yardstick::mae(general_testing, truth = TotalEarnings, estimate = .pred)
+
+rsq_test4
+rmse_test4
+mae_test4
+
+results_test4 <- workflow() %>%
+  add_model(linear_reg()) %>%
+  add_formula(TotalEarnings  ~  ReleaseDate + Genre + OfflineEarnings + PercentOffline + TotalPlayers + TotalTournaments) %>%
+  fit_resamples(vfold_cv(general_train, v=5),
+                metric_set(rsq_test4, rmse_test4, mae_test4)) 
+
+collect_metrics(results_test4)
+```
+
+```{r}
+historical_testing <- historical_test %>% 
+  bind_cols(predict(historical_lmodel, new_data = historical_test))
+
+print(historical_testing)
+
+ggplot(data = historical_testing, mapping = aes(x = Earnings, y = .pred)) + 
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1, color = "red")
+
+rsq_test5 <- yardstick::rsq(historical_testing, truth = Earnings, estimate = .pred)
+rmse_test5 <- yardstick::rmse(historical_testing, truth = Earnings, estimate = .pred)
+mae_test5 <- yardstick::mae(historical_testing, truth = Earnings, estimate = .pred)
+
+rsq_test5
+rmse_test5
+mae_test5
+
+results_test5 <- workflow() %>%
+  add_model(linear_reg()) %>%
+  add_formula(Earnings  ~  Date + Players + Tournaments) %>%
+  fit_resamples(vfold_cv(historical_train, v=5),
+                metric_set(rsq_test5, rmse_test5, mae_test5)) 
+
+collect_metrics(results_test5)
+```
+
+```{r}
+twitch_game_testing <- twitch_games_test %>% 
+  bind_cols(predict(twitch_game_lmodel, new_data = twitch_games_test))
+
+print(twitch_game_testing)
+
+ggplot(data = twitch_game_testing, mapping = aes(x = Peak_viewers, y = .pred)) + 
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1, color = "red")
+
+rsq_test6 <- yardstick::rsq(twitch_game_testing, truth = Peak_viewers, estimate = .pred)
+rmse_test6 <- yardstick::rmse(twitch_game_testing, truth = Peak_viewers, estimate = .pred)
+mae_test6 <- yardstick::mae(twitch_game_testing, truth = Peak_viewers, estimate = .pred)
+
+rsq_test6
+rmse_test6
+mae_test6
+
+results_test6 <- workflow() %>%
+  add_model(linear_reg()) %>%
+  add_formula(Peak_viewers  ~  Rank + Month + Year + Hours_watched + Hours_streamed + Peak_channels + Streamers + Avg_viewers + Avg_channels + Avg_viewer_ratio + Date) %>%
+  fit_resamples(vfold_cv(twitch_games_train, v=5),
+                metric_set(rsq_test6, rmse_test6, mae_test6)) 
+
+collect_metrics(results_test6)
+```
+
+# Sources
+
+https://www.esportsearnings.com

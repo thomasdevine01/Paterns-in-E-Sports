@@ -1,0 +1,59 @@
+---
+title: "explatory_data_analysis"
+format: html
+editor: visual
+---
+
+## Running Code
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{r}
+library(ggplot2)
+library(tidyverse)
+library(scales)
+setwd("/Users/quynh/Desktop/csci515/CSCI385")
+teams <- read.csv("highest_earning_teams.csv")
+players <- read.csv("highest_earning_players.csv")
+location <- read.csv("location.csv")
+general <- read.csv("GeneralEsportData.csv")
+historical <- read.csv("HistoricalEsportData.csv")
+
+```
+
+You can add options to executable code like this
+
+```{r}
+summary(general)
+top_5 <- general %>%
+  top_n(5, wt = TotalEarnings)
+
+ggplot(data = top_5, aes(x=reorder(Game, TotalEarnings), y=TotalEarnings, fill=Game)) +
+  geom_col() +
+  labs(title = "Top 5 Games By Total Earnings" ,x= element_blank(), y = "Earnings") +
+  theme(axis.text.x = element_text(angle = 30, hjust =1)) +
+  scale_y_continuous(labels = comma) +
+  guides(fill = "none")
+
+top_5_genres <- general %>%
+  filter(Game %in% top_5$Game) %>%
+  select(Game, Genre)
+
+print(top_5_genres)
+```
+
+```{r}
+
+genre_count <- general %>%
+    group_by(Genre) %>%
+    summarise(Count = n()) %>%
+    arrange(Count)
+
+ggplot(data = genre_count, aes(x=reorder(Genre, -Count), y=Count))+
+  geom_col(fill = "skyblue") +
+  labs(title = "Count Of Games For Each Genre " ,x= element_blank(), y = "Count") +
+  theme(axis.text.x = element_text(angle=45,hjust =1))
+
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).

@@ -22,12 +22,10 @@ default_theme <- theme(
     # Axis Text
     axis.title.x = element_text(
       color = "lightgray",  
-      size = 12, angle = 0,
-    ),
+      size = 12, angle = 0,),
     axis.title.y = element_text(
       color = "lightgray",  
-      size = 12, angle = 90,
-    ),
+      size = 12, angle = 90,),
     axis.text.x = element_text(
       face = "italic", color = "lightgray",  
       size = 8, angle = -15),
@@ -114,7 +112,8 @@ teams %>% # Only show the teams with multiple entries
   arrange(TeamId)
 ```
 
-Team IDs are in two different groups, should we redefine TeamIDs for our dataset?
+Team IDs are in two different groups, should we redefine TeamIDs for our
+dataset?
 
 Teams are listed repeatedly for each game they play
 
@@ -171,7 +170,9 @@ teams %>%
   ) + default_theme
 ```
 
-This only has the top 100 teams in the top 10 grossing games. Hearthstone and Arena of Valor have less than 100 teams listed here. Why?
+This only has the top 100 teams in the top 10 grossing games.
+Hearthstone and Arena of Valor have less than 100 teams listed here.
+Why?
 
 ### Genre
 
@@ -232,7 +233,8 @@ teams %>%
 
 -   Date: The month that some set of tournaments happened for this game
 -   Game: The game in question (name)
--   Earnings: Total amount earned by players in tournaments for this game.
+-   Earnings: Total amount earned by players in tournaments for this
+    game.
 -   Players: Number of players to whom earnings were distributed.
 -   Tournaments: Number of tournaments for this game this month.
 
